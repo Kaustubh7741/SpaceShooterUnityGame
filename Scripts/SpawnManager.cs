@@ -94,5 +94,10 @@ public class SpawnManager : MonoBehaviour
         }
     }
 
+    public bool SpawnEnabled()
+    {
+        return _spawnEnabled;
+    }
+
 
 }

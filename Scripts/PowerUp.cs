@@ -11,10 +11,10 @@ public class PowerUp : MonoBehaviour
     private float _bottomYBound = GlobalVariables.bottomYBound;
 
     [SerializeField]
-    private float _powerUpTranslateSpeed = 8f;
+    private float _powerUpTranslateSpeed = 5f;
 
     //[SerializeField]
-    private MyPlayer _player;       //Player handle to call appropriate power up function
+    private MyPlayer[] _players;       //Player handle to call appropriate power up function
 
     [SerializeField]
     private int _powerupID;     //0 - Triple Shot, 1 - Speed Boost, 2 - Shield
@@ -33,9 +33,15 @@ public class PowerUp : MonoBehaviour
         else
             transform.position = new Vector3(_rightXBound, Random.Range(_bottomYBound + 1, _topYBound - 1), transform.position.z);
 
-        _player = GameObject.FindGameObjectWithTag("Player").GetComponent<MyPlayer>();
-        if (_player == null)
-            Debug.LogError("Player instance error in trigger for powerup");
+        //_player = GameObject.FindGameObjectWithTag("Player").GetComponent<MyPlayer>();
+        GameObject[] temp = GameObject.FindGameObjectsWithTag("Player");
+        _players = new MyPlayer[temp.Length];
+        for (int i = 0; i < temp.Length; i++)
+        {
+            _players[i] = temp[i].GetComponent<MyPlayer>();
+            if (_players[i] == null)
+                Debug.LogError("Player" + i + " instance error in trigger for powerup");
+        }
 
         _pickupSound = GameObject.Find("PowerUp_Pickup_sound").GetComponent<AudioSource>();
         if (_pickupSound == null)
@@ -59,33 +65,36 @@ public class PowerUp : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        //if picked up by player
-        if(other.CompareTag("Player"))
+        for (int i=0; i < _players.Length; i++)
         {
-            switch(_powerupID)
+            //if picked up by player
+            if (other.gameObject == _players[i].gameObject)
             {
-                case 0:
-                    _player.ActivateTripleShot();
-                    break;
+                switch (_powerupID)
+                {
+                    case 0:
+                        _players[i].ActivateTripleShot();
+                        break;
 
-                case 1:
-                    _player.ActivateSpeedBoost();
-                    break;
+                    case 1:
+                        _players[i].ActivateSpeedBoost();
+                        break;
 
-                case 2:
-                    _player.IncreaseShieldHealth();
-                    break;
+                    case 2:
+                        _players[i].IncreaseShieldHealth();
+                        break;
 
-                default:
-                    Debug.LogError("Power Up ID out of bounds");
-                    break;
+                    default:
+                        Debug.LogError("Power Up ID out of bounds");
+                        break;
+                }
+                //play collected audio
+                _pickupSound.Play();
+
+                Destroy(this.gameObject);
             }
-            //play collected audio
-            _pickupSound.Play();
-
-            Destroy(this.gameObject);
+            //Debug.Log("Triggered");
         }
-        //Debug.Log("Triggered");
     }
 
 }

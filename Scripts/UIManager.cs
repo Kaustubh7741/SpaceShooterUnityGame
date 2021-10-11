@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,7 +15,9 @@ public class UIManager : MonoBehaviour
     private Sprite[] _playerLivesSprites;   //Sprites/Images for player lives
     private Image _livesImg;    //Lives image in canvas
 
-    private GameManager _gameManager;
+    private GameManager _gameManager;       //handle to game manager which handles scene management on game over
+
+    //private GameObject _gamePausedPanel;        //handle for toggling game paused screen
     
     // Start is called before the first frame update
     void Start()
@@ -40,6 +43,10 @@ public class UIManager : MonoBehaviour
         _gameManager = GameObject.FindGameObjectWithTag("Game_Manager").GetComponent<GameManager>();
         if(_gameManager == null)
             Debug.LogError("Game manager was not initialized");
+
+        /*_gamePausedPanel = transform.Find("Game_Paused_panel").gameObject;
+        if (_gamePausedPanel == null)
+            Debug.LogError("Game paused screen/panel was not initialized");*/
     }
 
     public void UpdateScoreOnScreen(int playerScore)
@@ -50,6 +57,26 @@ public class UIManager : MonoBehaviour
     public void DisplayAccuracyOnScreen(float playerAccuracy)
     {
         _scoreText.text = _scoreText.text + "\nAccuracy: " + playerAccuracy.ToString("0.00") + "%";     //ToString will consider only 2 values after decimal point but all values before it
+    }
+
+    public void CheckHighScore(int sessionScore, float sessionAccuracy)
+    {
+        int highScore = PlayerPrefs.GetInt("HighScore", 0);
+        float bestAccuracy = PlayerPrefs.GetFloat("BestAccuracy", 0f);
+
+        if((highScore * bestAccuracy) < (sessionScore * sessionAccuracy))
+        {
+            PlayerPrefs.SetInt("HighScore", sessionScore);
+            PlayerPrefs.SetFloat("BestAccuracy", sessionAccuracy);
+            _scoreText.text += "\nNew High Score!";
+        }
+        //break ties in favour of score (could have or-ed with prev condition)
+        else if (((highScore * bestAccuracy) == (sessionScore * sessionAccuracy)) && highScore < sessionScore)
+        {
+            PlayerPrefs.SetInt("HighScore", sessionScore);
+            PlayerPrefs.SetFloat("BestAccuracy", sessionAccuracy);
+            _scoreText.text += "\nNew High Score!";
+        }
     }
 
     public void UpdateLivesOnScreen(int currentLives)
@@ -79,4 +106,17 @@ public class UIManager : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
     }
+
+    /*public void TogglePause(bool isPaused)
+    {
+        
+        //Time.timeScale = Convert.ToInt32(isPaused);
+        if (isPaused)
+            Time.timeScale = 0;
+        else
+            Time.timeScale = 1;
+
+        //Enable UI and stop time OR Disable UI and resume time
+        _gamePausedPanel.SetActive(isPaused);
+    }*/
 }
