@@ -10,10 +10,10 @@ public class Enemy : MonoBehaviour
     private float _topYBound = GlobalVariables.topYBound;
     private float _bottomYBound = GlobalVariables.bottomYBound;
 
-    private float _deltaTime;
+    //private float _deltaTime;
 
     [SerializeField]
-    private float _enemyMoveSpeed = 2.5f;
+    private float _enemyMoveSpeed = 0.075f;
 
     private float _enemyScaleFactor;
 
@@ -35,19 +35,29 @@ public class Enemy : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        _deltaTime = Time.deltaTime;
+        //_deltaTime = Time.deltaTime;
         //_enemyMoveSpeed *= deltaTime;
         //_enemyRotateSpeed = 5f;
 
-        _player = GameObject.FindGameObjectWithTag("Player").GetComponent<MyPlayer>();
+        _player = GameObject.FindGameObjectWithTag("Player").GetComponent<MyPlayer>();  //will get a random or 1st player
+        /*if (_player == null)
+            Debug.LogError("Player was not instantiated in Enemy class");*/
+
+        //Find closest player
+        GameObject[] temp = GameObject.FindGameObjectsWithTag("Player");
+        for (int i = 0; i < temp.Length; i++)
+        {
+            if((temp[i].transform.position.x - transform.position.x) < (_player.transform.position.x - transform.position.x))
+                _player = temp[i].GetComponent<MyPlayer>();
+        }
         if (_player == null)
-            Debug.LogError("Player was not instantiated in Enemy class");
+            Debug.LogError("Player instance error in trigger for powerup");
 
         _animator = GetComponent<Animator>();
         if (_animator == null)
             Debug.LogError("Animation reference was not instantiated in Enemy class");
 
-        _enemyScaleFactor = Random.Range(0.5f, 1.6f);
+        _enemyScaleFactor = Random.Range(0.5f, 1.1f);
 
         transform.position = new Vector3(Random.Range((_leftXBound+_enemyScaleFactor), (_rightXBound-_enemyScaleFactor)), _topYBound + 2f, 0);
         transform.localScale = new Vector3(_enemyScaleFactor, _enemyScaleFactor, transform.localScale.z);   //Sca;ing enemies to classify score
@@ -67,11 +77,22 @@ public class Enemy : MonoBehaviour
         //movement direction is 1 unit down and 1 unit towards player
         float xDirection = 0;
         if (_player != null)
-            xDirection = (_player.gameObject.transform.position.x - transform.position.x)/Mathf.Abs(_player.gameObject.transform.position.x - transform.position.x);
+            xDirection = (_player.gameObject.transform.position.x - transform.position.x) / Mathf.Abs(_player.gameObject.transform.position.x - transform.position.x);
 
         //move enemy down towards player
-        _movementDirection.Set(xDirection * 0.25f, -1f, 0f);
-        transform.Translate(_movementDirection * _deltaTime * _enemyMoveSpeed);
+        _movementDirection.Set(xDirection * 0.15f, -1f, 0f);
+        transform.Translate(_enemyMoveSpeed * Time.timeScale * _movementDirection);
+
+        /*float angle = -(Vector3.Angle(_player.gameObject.transform.position, transform.position));//Mathf.Tan((_player.gameObject.transform.position.x - transform.position.x) / (_player.gameObject.transform.position.y - transform.position.y));
+        if (Mathf.Abs(angle) > 15f)
+            angle = 15f * Mathf.Sign(angle);
+        
+        _movementDirection.Set(0f, 0f, angle);*/
+
+
+        /*//tilt the enemy slightly while tracking player
+        transform.eulerAngles = _movementDirection;*/
+
         //transform.Translate(_deltaTime * _enemyMoveSpeed * Vector3.down);
         //transform.Rotate(Vector3.up * _enemyRotateSpeed);
 
@@ -121,7 +142,7 @@ public class Enemy : MonoBehaviour
             //update score
             if(_player != null)
             {
-                if (_enemyScaleFactor < 1.0f)
+                if (_enemyScaleFactor < 0.75f)
                     _player.IncreaseScore(20);
                 else
                     _player.IncreaseScore(10);
@@ -151,6 +172,9 @@ public class Enemy : MonoBehaviour
 
     IEnumerator DestroyEnemy()
     {
+        //reduce movement speed to simulate inertia better
+        _enemyMoveSpeed /= 4;
+
         //Destroy all children first
         for (int i = 0; i < transform.childCount; i++)
             Destroy(transform.GetChild(i).gameObject, 0.5f);

@@ -25,8 +25,8 @@ public class MyPlayer : MonoBehaviour
     [SerializeField]
     private GameObject _laserPrefab;    //Laser prefab - used to create exactly same instances of a 3D object (here, laser). Linked from Unity inspector
 
-    [SerializeField]
-    private GameObject _tripleShotPrefab;   //Laser prefab after picking up triple shot power up
+    /*[SerializeField]
+    private GameObject _tripleShotPrefab;   //Laser prefab after picking up triple shot power up*/
 
     [SerializeField]
     private float _fireRate = 0.25f;    //Interval between 2 consecutive laser fire
@@ -66,19 +66,23 @@ public class MyPlayer : MonoBehaviour
 
     private AudioSource _powerupLostSound;      //Handle to play inverse of powerup sound when power up is depleted
 
+    //private bool _isGamePaused = false;     //variable to toggle pausing
+
+    private GameManager _gameManager;       //Game manager handle for single player/coop
+
+    [SerializeField]
+    private bool _isPlayerOne = true, _isPlayerTwo = false;       //Player identifier for control setup
+
     private Vector3 _temp;  //temp vector
 
     //Player scores
-    private int _score = 0;
-    private int _killCount = 0;
-    private float _accuracy = 0;
-    private int _shots = 0;
+    private static int _score = 0;
+    private static int _killCount = 0;
+    private static float _accuracy = 0;
+    private static int _shots = 0;
 
     void Start()
     {
-        //make current position = new position(0, 0, 0)
-        transform.position = new Vector3(0f, _bottomYBound + 2.5f, 0f);
-
         //Set to 1 unit per second
         //_perSecondMultiplier = Time.deltaTime;
 
@@ -105,8 +109,11 @@ public class MyPlayer : MonoBehaviour
         if (_thruster == null)
             Debug.LogError("Thruster is not initialized in Player class");
 
-        _damage1 = transform.Find("Damage").GetChild(Random.Range(0, 2)).gameObject;     //Minor damange
+        _damage1 = transform.Find("Damage").GetChild(Random.Range(0, 2)).gameObject;    //Minor damange
         _damage2 = transform.Find("Damage").GetChild(Random.Range(2, 4)).gameObject;    //Major damage
+
+        if (_damage1 == null || _damage2 == null)
+            Debug.LogError("Damage object was not initialized in Player class");
 
         _laserShotSound = GameObject.Find("Laser_Shot_sound").GetComponent<AudioSource>();
         if (_laserShotSound == null)
@@ -124,34 +131,76 @@ public class MyPlayer : MonoBehaviour
         if (_powerupLostSound == null)
             Debug.LogError("Powerup audio source reference was not instantiated in Player class");
 
+        _gameManager = GameObject.Find("Game_Manager").GetComponent<GameManager>();
+        if (_gameManager == null)
+            Debug.LogError("Game Manager was not instantiated in Player class");
+
+        //reset Time.time if paused and quit (bug fix)
+        //_uiManager.TogglePause(false);    //results in NullReferenceException in UI Manager class
+
+        //set player attributes to zero every time game starts for co-op score consistency
+        _score = 0;
+        _killCount = 0;
+        _accuracy = 0;
+        _shots = 0;
+
         _temp = new Vector3();
+
+        //Override position
+        if (_gameManager.IsCoopMode())
+        {
+            if(_isPlayerOne)
+                transform.position = new Vector3(-2.5f, _bottomYBound + 2.5f, 0f);
+            if (_isPlayerTwo)
+                transform.position = new Vector3(2.5f, _bottomYBound + 2.5f, 0f);
+        }
+        else
+        {
+            transform.position = new Vector3(0f, _bottomYBound + 2.5f, 0f);
+        }
 
     }
 
     // Update is called once per frame
     void Update()
     {
-        PlayerMovement();
-
         //If Spacebar pressed - fire laser
         //if (Input.GetKeyDown(KeyCode.Space))
-        
+
         //while spacebar is pressed, fire laser
-        if (Input.GetKey(KeyCode.Space))
+        if (_isPlayerOne)
         {
-            FireLaser();
+            PlayerOneMovement();
+            if (Input.GetKey(KeyCode.Space) && _playerLife > 0)// && !_isGamePaused)
+            {
+                PlayerOneFireLaser();
+            }
+        }
+        else if (_isPlayerTwo)
+        {
+            PlayerTwoMovement();
+            if (Input.GetKey(KeyCode.RightControl) && _playerLife > 0)// && !_isGamePaused)
+            {
+                PlayerTwoFireLaser();
+            }
         }
 
-        //if escape is pressed, quit game
-        if (Input.GetKeyDown(KeyCode.Escape))
+        /*//if escape is pressed, quit game
+        if (Input.GetKeyDown(KeyCode.Escape) && _playerLife > 0)
         {
-            SceneManager.LoadScene(0);      //Load main menu scene
-        }
+            //Load main menu scene
+            //SceneManager.LoadScene(0);
+
+            //Pause or resume game
+            _isGamePaused = !_isGamePaused;
+            _uiManager.TogglePause(_isGamePaused);
+        }*/
 
     }
 
-    void PlayerMovement()
+    void PlayerOneMovement()
     {
+        float factor = 0.05f;
         //transform.Translate(new Vector3(1, (float)1.5, (float)1.25) * _perSecondMultiplier);
 
         /* float horizontalInput = Input.GetAxis("Horizontal");
@@ -165,8 +214,13 @@ public class MyPlayer : MonoBehaviour
         Vector3 direction = new Vector3(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"), 0);
         transform.Translate(_playerSpeed * Time.deltaTime * direction);
 
+        /*if ((transform.position.x > _rightXBound) || (transform.position.x < _leftXBound))
+            transform.position = new Vector3(-transform.position.x, transform.position.y, transform.position.z);*/
+
+        //to avoid the flicker effect, give an offset while inverting x position
         if ((transform.position.x > _rightXBound) || (transform.position.x < _leftXBound))
-            transform.position = new Vector3(-transform.position.x, transform.position.y, transform.position.z);
+            transform.position = new Vector3(-(transform.position.x - (0.5f * Mathf.Sign(transform.position.x))), transform.position.y, transform.position.z);
+
         /*if ((transform.position.y > 10f) || (transform.position.y < -10f))
             transform.position = new Vector3(transform.position.x, -transform.position.y, transform.position.z);*/
         transform.position = new Vector3(transform.position.x, Mathf.Clamp(transform.position.y, _bottomYBound, _topYBound), transform.position.z);
@@ -199,21 +253,30 @@ public class MyPlayer : MonoBehaviour
         {
             //player is moving left
             _animator.SetBool("IsMovingLeft", true);
+
+            //scale down major damage to match wing distance
+            MajorDamageAnimationScalar(-1, factor);
         }
         else if (direction.x > 0)
         {
             //player is moving right
             _animator.SetBool("IsMovingRight", true);
+
+            //scale down major damage to match wing distance
+            MajorDamageAnimationScalar(1, factor);
         }
         else
         {
             //no movement
             _animator.SetBool("IsMovingLeft", false);
             _animator.SetBool("IsMovingRight", false);
+
+            //scale up/reset scale for major damage to match wing distance
+            MajorDamageAnimationScalar(0, factor);
         }
     }
 
-    void FireLaser()
+    void PlayerOneFireLaser()
     {
         if (_allowFire < Time.time)     //condition for fire rate
         {
@@ -242,8 +305,9 @@ public class MyPlayer : MonoBehaviour
             //Fire rate setup
             _allowFire = Time.time + _fireRate;
 
-            //Shot fired
-            _shots++;
+            //Shot fired if spawning is enabled to skip asteroid destruction
+            if(_spawnManager.SpawnEnabled())
+                _shots++;
 
             //if triple shot is enabled, fire the Triple_Shot prefab
             if (_isTripleShotActive)
@@ -284,6 +348,115 @@ public class MyPlayer : MonoBehaviour
 
     }
 
+
+
+    void PlayerTwoMovement()
+    {
+        float factor = 0.05f;
+        Vector3 direction = new Vector3();
+        //Player 2 movement
+        bool down = Input.GetKey(KeyCode.K), left = Input.GetKey(KeyCode.J),
+            right = Input.GetKey(KeyCode.L), up = Input.GetKey(KeyCode.I);
+        if (up)
+            direction.Set(0, 1.0f, 0);
+        if (left)
+            direction.Set(-1.0f, 0, 0);
+        if (down)
+            direction.Set(0, -1.0f, 0);
+        if (right)
+            direction.Set(1.0f, 0, 0);
+
+        transform.Translate(_playerSpeed * Time.deltaTime * direction);
+        if ((transform.position.x > _rightXBound) || (transform.position.x < _leftXBound))
+            transform.position = new Vector3(-(transform.position.x - (0.5f * Mathf.Sign(transform.position.x))), transform.position.y, transform.position.z);
+        transform.position = new Vector3(transform.position.x, Mathf.Clamp(transform.position.y, _bottomYBound, _topYBound), transform.position.z);
+        float originalScale = 0.5f;
+        float originalYOffset = -1.3f;
+        float boostedScale = 0.75f;
+        float boostedYOffset = -1.4f;
+        if (up && _thruster.transform.localScale.x == originalScale)
+        {
+            _temp.Set(boostedScale, boostedScale, 1f);
+            _thruster.transform.localScale = _temp;
+            _temp.Set(0f, boostedYOffset, 0f);
+            _thruster.transform.position = transform.position + _temp;
+        }
+
+        else if (!up && _thruster.transform.localScale.x == boostedScale)
+        {
+            _temp.Set(originalScale, originalScale, 1f);
+            _thruster.transform.localScale = _temp;
+            _temp.Set(0f, originalYOffset, 0f);
+            _thruster.transform.position = transform.position + _temp;
+        }
+        if (direction.x < 0)
+        {
+            //player is moving left
+            _animator.SetBool("IsMovingLeft", true);
+            MajorDamageAnimationScalar(-1, factor);
+        }
+        else if (direction.x > 0)
+        {
+            _animator.SetBool("IsMovingRight", true);
+            MajorDamageAnimationScalar(1, factor);
+        }
+        else if (direction.x == 0)
+        {
+            _animator.SetBool("IsMovingLeft", false);
+            _animator.SetBool("IsMovingRight", false);
+            MajorDamageAnimationScalar(0, factor);
+        }
+    }
+
+    void PlayerTwoFireLaser()
+    {
+        if (_allowFire < Time.time)
+        {
+            GameObject newLaser;
+            GameObject newLaserL;
+            GameObject newLaserR;
+            float playerX = transform.position.x;
+            float playerY = transform.position.y;
+            float playerZ = transform.position.z;
+            newLaser = Instantiate(_laserPrefab, new Vector3(playerX, (playerY + 1f), playerZ), Quaternion.identity);
+            if (newLaser != null)
+                newLaser.transform.parent = _laserContainer.transform;
+            else
+            {
+                Debug.LogError("Laser was not instantiated");
+                _spawnManager.SetSpawning(false);
+            }
+            _allowFire = Time.time + _fireRate;
+            _shots++;
+            if (_isTripleShotActive)
+            {
+                newLaserL = Instantiate(_laserPrefab, new Vector3((playerX - 0.8f), (playerY - 0.5f), playerZ), Quaternion.Euler(0f, 0f, 45f));
+                newLaserR = Instantiate(_laserPrefab, new Vector3((playerX + 0.8f), (playerY - 0.5f), playerZ), Quaternion.Euler(0f, 0f, -45f));
+
+                if (newLaserL != null)
+                    newLaserL.transform.parent = _laserContainer.transform;
+                else
+                {
+                    Debug.LogError("LaserL was not instantiated");
+                    _spawnManager.SetSpawning(false);
+                }
+                if (newLaserR != null)
+                    newLaserR.transform.parent = _laserContainer.transform;
+                else
+                {
+                    Debug.LogError("LaserR was not instantiated");
+                    _spawnManager.SetSpawning(false);
+                }
+
+            }
+            _laserShotSound.Play(0);
+
+        }
+
+    }
+
+
+
     //Public method to update score instead of manually setting
     public void IncreaseScore(int byPoints)
     {
@@ -310,8 +483,7 @@ public class MyPlayer : MonoBehaviour
                 //play power down sound
                 StartCoroutine(PlayPowerupLossSound());
             }
-
-                return;
+            return;
         }
 
         _playerLife -= 1;
@@ -335,10 +507,15 @@ public class MyPlayer : MonoBehaviour
             _spawnManager.SetSpawning(false);
 
             //replace with explosion animation
-            Instantiate(_explosionPrefab, transform.position, Quaternion.identity).transform.localScale = new Vector3(2f, 2f, 1f);
+            GameObject deathExplosion = Instantiate(_explosionPrefab, transform.position, Quaternion.identity);
+            deathExplosion.transform.localScale.Set(1.5f, 1.5f, 1f);
+            deathExplosion.GetComponent<AudioSource>().Stop();
 
             //Play explosion sound
             //_explosionSound.Play();
+
+            //check if high score
+            _uiManager.CheckHighScore(_score, _accuracy);
 
             Destroy(this.gameObject);
 
@@ -352,6 +529,85 @@ public class MyPlayer : MonoBehaviour
             if (_playerLife == 1)    //trigger major (engine) damage
                 _damage2.SetActive(true);
         }
+    }
+
+    void MajorDamageAnimationScalar(int movementDirection, float animationScalingSpeed)
+    {
+        if (_damage2.activeSelf)
+        {
+            //Will only work for 3 conditions-
+            //movementDirection = 0     >> No player movement
+            //movementDirection = -1    >> Player moving right
+            //movementDirection = 1     >> Player moving left
+
+            float scaleDownLimit = 0.75f, scaleUpLimit = 1.1f;
+
+            //scale up or down major damage to match wing distance
+            if (movementDirection == -1)
+            {
+                if (_damage2.transform.position.x < transform.position.x && _damage2.transform.localScale.x > scaleDownLimit)
+                {
+                    //Condition description-
+                    //if damage is LEFT of player position && is active && scale > scaleDownLimit >> scale DOWN by animationScalingSpeed
+
+                    _temp.Set(_damage2.transform.localScale.x - animationScalingSpeed, _damage2.transform.localScale.y - animationScalingSpeed, _damage2.transform.localScale.z);
+                    _damage2.transform.localScale = _temp;
+                }
+
+                if (_damage2.transform.position.x > transform.position.x && _damage2.transform.localScale.x < scaleUpLimit)
+                {
+                    //Condition description-
+                    //if damage is RIGHT of player position && is active && scale < 1.1 >> scale UP by 0.05f
+
+                    _temp.Set(_damage2.transform.localScale.x + animationScalingSpeed, _damage2.transform.localScale.y + animationScalingSpeed, _damage2.transform.localScale.z);
+                    _damage2.transform.localScale = _temp;
+                }
+            }
+
+            else if (movementDirection == 1)
+            {
+                if (_damage2.transform.position.x < transform.position.x && _damage2.transform.localScale.x < scaleUpLimit)
+                {
+                    //Condition description-
+                    //if damage is LEFT of player position && is active && scale > scaleDownLimit >> scale DOWN by animationScalingSpeed
+
+                    _temp.Set(_damage2.transform.localScale.x + animationScalingSpeed, _damage2.transform.localScale.y + animationScalingSpeed, _damage2.transform.localScale.z);
+                    _damage2.transform.localScale = _temp;
+                }
+
+                else if (_damage2.transform.position.x > transform.position.x && _damage2.transform.localScale.x > scaleDownLimit)
+                {
+                    //Condition description-
+                    //if damage is RIGHT of player position && is active && scale < 1.1 >> scale UP by 0.05f
+
+                    _temp.Set(_damage2.transform.localScale.x - animationScalingSpeed, _damage2.transform.localScale.y - animationScalingSpeed, _damage2.transform.localScale.z);
+                    _damage2.transform.localScale = _temp;
+                }
+            }
+
+            else if (movementDirection == 0)
+            {
+                if (_damage2.transform.localScale.x < 1f)
+                {
+                    _temp.Set(_damage2.transform.localScale.x + animationScalingSpeed, _damage2.transform.localScale.y + animationScalingSpeed, _damage2.transform.localScale.z);
+                    _damage2.transform.localScale = _temp;
+                }
+
+                else if (_damage2.transform.localScale.x > 1f)
+                {
+                    _temp.Set(_damage2.transform.localScale.x - animationScalingSpeed, _damage2.transform.localScale.y - animationScalingSpeed, _damage2.transform.localScale.z);
+                    _damage2.transform.localScale = _temp;
+                }
+
+                //if scaling goes beyond bounds by less than animationScalingSpeed, it will keep toggling. So reset to 1
+                if (_damage2.transform.localScale.x != 1f && (1f - _damage2.transform.localScale.x) < animationScalingSpeed)
+                {
+                    _temp.Set(1f, 1f, 1f);
+                    _damage2.transform.localScale = _temp;
+                }
+            }
+        }
+
     }
 
     ///

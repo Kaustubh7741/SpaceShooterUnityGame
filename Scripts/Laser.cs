@@ -10,14 +10,16 @@ public class Laser : MonoBehaviour
     private float _topYBound = GlobalVariables.topYBound;
     //private float _bottomYBound = GlobalVariables.bottomYBound;
 
-    private float _deltaTime;
-    private float _laserSpeed = 12f;
+    //private float _deltaTime;
+
+    [SerializeField]
+    private float _laserSpeed = 0.25f;
     //private float _laserSpinSpeed;
 
     // Start is called before the first frame update
     void Start()
     {
-        _deltaTime = Time.deltaTime;
+        //_deltaTime = Time.deltaTime;
         //_laserSpeed = 0.2f;// * _deltaTime;
         //_laserSpinSpeed = 20f;// * _deltaTime;
 }
@@ -27,13 +29,13 @@ public class Laser : MonoBehaviour
     {
         //translate laser up and spin
         if(transform.rotation.z == 0f)
-            transform.Translate(_deltaTime * _laserSpeed * Vector3.up);
+            transform.Translate(_laserSpeed * Vector3.up * Time.timeScale);
 
         //Translate side lasers for triple shot
         if (transform.rotation.eulerAngles.z > 0)       //Left
-            transform.Translate(_deltaTime * _laserSpeed * new Vector3(0f, 1f, 0f));
+            transform.Translate(_laserSpeed * new Vector3(0f, 1f, 0f) * Time.timeScale);
         if (transform.rotation.eulerAngles.z < 0)       //Right
-            transform.Translate(_deltaTime * _laserSpeed * new Vector3(0f, -1f, 0f));
+            transform.Translate(_laserSpeed * new Vector3(0f, -1f, 0f) * Time.timeScale);
 
         //transform.Rotate(0, _laserSpinSpeed, 0);
         //transform.Rotate(Vector3.up * _laserSpinSpeed);
