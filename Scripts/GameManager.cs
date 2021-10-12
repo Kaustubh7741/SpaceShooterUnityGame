@@ -53,7 +53,7 @@ public class GameManager : MonoBehaviour
     }
 
 
-public void GameOver()
+    public void GameOver()
     {
         _isGameOver = true;
     }
@@ -61,6 +61,11 @@ public void GameOver()
     public bool IsCoopMode()
     {
         return _isCoop;
+    }
+
+    public bool GamePaused()
+    {
+        return _isGamePaused;
     }
 
     public void TogglePause(bool isPaused)
