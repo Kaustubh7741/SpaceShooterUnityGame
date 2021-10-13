@@ -51,7 +51,7 @@ public class GameManager : MonoBehaviour
 #if UNITY_STANDALONE
         _userInputs.escape = Input.GetKeyDown(KeyCode.Escape);
         _userInputs.restart = Input.GetKeyDown(KeyCode.R);
-#elif UNITY_ANDROID
+#elif UNITY_ANDROID || UNITY_IOS
         _userInputs.escape = Input.GetKeyDown(KeyCode.Escape);  //its the same for Android
         _userInputs.restart = CrossPlatformInputManager.GetButtonUp("Fire");
 #endif
