@@ -93,6 +93,10 @@ public class UIManager : MonoBehaviour
 
     public void InitiateGameOverSequence()
     {
+        //Replace game over text for Android
+#if UNITY_ANDROID
+        _gameOverText.gameObject.transform.GetChild(0).GetComponent<Text>().text = "Press 'Fire' to restart the game or 'Back' to go back to main menu";
+#endif
         _gameManager.GameOver();
         StartCoroutine(FlickerGameOverText());
     }
