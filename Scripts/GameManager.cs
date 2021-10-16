@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;      //Library for scene manager
+using UnityStandardAssets.CrossPlatformInput;
 
 public class GameManager : MonoBehaviour
 {
@@ -14,6 +15,15 @@ public class GameManager : MonoBehaviour
     //private GameObject _gamePausedPanel;        //handle for toggling game paused screen
     private Animator _gamePausedPanelAnimation;        //handle for toggling game paused screen animation
 
+    //Structure to store platform user inputs
+    private struct UserInputs
+    {
+        public bool escape;
+        public bool restart;
+    };
+    UserInputs _userInputs;
+
+
     void Start()
     {
         /*_gamePausedPanel = GameObject.Find("Canvas").transform.Find("Game_Paused_panel").gameObject;
@@ -24,36 +34,60 @@ public class GameManager : MonoBehaviour
         if (_gamePausedPanelAnimation == null)
             Debug.LogError("Game paused screen/panel animator was not initialized");
         _gamePausedPanelAnimation.updateMode = AnimatorUpdateMode.UnscaledTime;     //will work irrespective of Time.timeScale
+
+        _userInputs = new UserInputs
+        {
+            escape = false,
+            restart = false
+        };
+
+
     }
 
     // Update is called once per frame
     void Update()
     {
+        //store user inputs to avoid code repetition
+#if UNITY_STANDALONE
+        _userInputs.escape = Input.GetKeyDown(KeyCode.Escape);
+        _userInputs.restart = Input.GetKeyDown(KeyCode.R);
+#elif UNITY_ANDROID || UNITY_IOS
+        _userInputs.escape = Input.GetKeyDown(KeyCode.Escape);  //its the same for Android
+        _userInputs.restart = CrossPlatformInputManager.GetButtonUp("Fire");
+#endif
+
         //Before this go to File > Build Settings -> Add Open Scenes. After adding note its index
-        if(_isGameOver && Input.GetKeyDown(KeyCode.Escape))
+        if (_isGameOver)
         {
-            SceneManager.LoadScene(0);      //Load main menu scene
+            //Replace game over text for Android
+            if (_isGameOver && _userInputs.escape)
+            {
+                SceneManager.LoadScene(0);      //Load main menu scene
+            }
+
+            if (_isGameOver && _userInputs.restart)
+            {
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);      //Load current game scene (better than String use)
+            }
         }
 
-        if (_isGameOver && Input.GetKeyDown(KeyCode.R))
+        else
         {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);      //Load current game scene (better than String use)
-        }
+            //if escape is pressed, pause game
+            if (_userInputs.escape)// && !_isGameOver)
+            {
+                //Load main menu scene
+                //SceneManager.LoadScene(0);
 
-        //if escape is pressed, quit game
-        if (Input.GetKeyDown(KeyCode.Escape) && !_isGameOver)
-        {
-            //Load main menu scene
-            //SceneManager.LoadScene(0);
-
-            //Pause or resume game
-            _isGamePaused = !_isGamePaused;
-            TogglePause(_isGamePaused);
+                //Pause or resume game
+                _isGamePaused = !_isGamePaused;
+                TogglePause(_isGamePaused);
+            }
         }
     }
 
 
-public void GameOver()
+    public void GameOver()
     {
         _isGameOver = true;
     }
@@ -61,6 +95,11 @@ public void GameOver()
     public bool IsCoopMode()
     {
         return _isCoop;
+    }
+
+    public bool GamePaused()
+    {
+        return _isGamePaused;
     }
 
     public void TogglePause(bool isPaused)

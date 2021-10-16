@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class MainMenu : MonoBehaviour
 {
-    private Text _highScoreText;
+    private Text _highScoreText, _coopDisabledText;
 
     private void Start()
     {
@@ -16,6 +16,8 @@ public class MainMenu : MonoBehaviour
         {
             _highScoreText = transform.Find("High_Score_text").GetComponent<Text>();
             LoadHighScore();
+
+            _coopDisabledText = transform.Find("Menu").transform.Find("Temp_text").GetComponent<Text>();
         }
     }
 
@@ -52,11 +54,24 @@ public class MainMenu : MonoBehaviour
 
     public void LoadCoopGame()
     {
+#if UNITY_STANDALONE
         SceneManager.LoadScene(3);
+#elif UNITY_ANDROID || UNITY_IOS
+        StartCoroutine(PromptText());
+        return;
+#endif
+        
     }
 
     public void QuitGame()
     {
         Application.Quit();
+    }
+
+    IEnumerator PromptText()
+    {
+        _coopDisabledText.gameObject.SetActive(true);
+        yield return new WaitForSeconds(3f);
+        _coopDisabledText.gameObject.SetActive(false);
     }
 }

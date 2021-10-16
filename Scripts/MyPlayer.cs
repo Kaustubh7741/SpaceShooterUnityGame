@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityStandardAssets.CrossPlatformInput;
 
 public class MyPlayer : MonoBehaviour
 {
@@ -171,15 +172,22 @@ public class MyPlayer : MonoBehaviour
         if (_isPlayerOne)
         {
             PlayerOneMovement();
-            if (Input.GetKey(KeyCode.Space) && _playerLife > 0)// && !_isGamePaused)
+#if UNITY_STANDALONE
+            if ((Input.GetKey(KeyCode.Space) && _playerLife > 0) && !_gameManager.GamePaused())
             {
                 PlayerOneFireLaser();
             }
+#elif UNITY_ANDROID || UNITY_IOS
+            if ((CrossPlatformInputManager.GetButton("Fire") && _playerLife > 0) && !_gameManager.GamePaused())
+            {
+                PlayerOneFireLaser();
+            }
+#endif
         }
         else if (_isPlayerTwo)
         {
             PlayerTwoMovement();
-            if (Input.GetKey(KeyCode.RightControl) && _playerLife > 0)// && !_isGamePaused)
+            if ((Input.GetKey(KeyCode.RightControl) && _playerLife > 0) && !_gameManager.GamePaused())
             {
                 PlayerTwoFireLaser();
             }
@@ -211,7 +219,8 @@ public class MyPlayer : MonoBehaviour
         /*transform.Translate(Vector3.right * horizontalInput * _speed);
         transform.Translate(Vector3.up * verticalInput * _speed);*/
 
-        Vector3 direction = new Vector3(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"), 0);
+        //Vector3 direction = new Vector3(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"), 0);
+        Vector3 direction = new Vector3(CrossPlatformInputManager.GetAxis("Horizontal"), CrossPlatformInputManager.GetAxis("Vertical"), 0);
         transform.Translate(_playerSpeed * Time.deltaTime * direction);
 
         /*if ((transform.position.x > _rightXBound) || (transform.position.x < _leftXBound))
@@ -230,7 +239,7 @@ public class MyPlayer : MonoBehaviour
         float originalYOffset = -1.3f;//_thruster.transform.position.y;
         float boostedScale = 0.75f;
         float boostedYOffset = -1.4f;
-        if (Input.GetAxis("Vertical") > 0 && _thruster.transform.localScale.x == originalScale)   //if(Input.GetKeyDown(KeyCode.W))
+        if (CrossPlatformInputManager.GetAxis("Vertical") > 0 && _thruster.transform.localScale.x == originalScale)   //if(Input.GetKeyDown(KeyCode.W))
         {
             //scale the object to 1 on all axis and displace the object on Y-axis according to player
             _temp.Set(boostedScale, boostedScale, 1f);
@@ -239,7 +248,7 @@ public class MyPlayer : MonoBehaviour
             _thruster.transform.position = transform.position + _temp;
         }
 
-        if (Input.GetAxis("Vertical") <= 0 && _thruster.transform.localScale.x == boostedScale)
+        if (CrossPlatformInputManager.GetAxis("Vertical") <= 0 && _thruster.transform.localScale.x == boostedScale)
         {
             //scale the object to 0.5 on all axis and displace the object on Y-axis according to player
             _temp.Set(originalScale, originalScale, 1f);
@@ -253,6 +262,7 @@ public class MyPlayer : MonoBehaviour
         {
             //player is moving left
             _animator.SetBool("IsMovingLeft", true);
+            _animator.SetBool("IsMovingRight", false);
 
             //scale down major damage to match wing distance
             MajorDamageAnimationScalar(-1, factor);
@@ -261,6 +271,7 @@ public class MyPlayer : MonoBehaviour
         {
             //player is moving right
             _animator.SetBool("IsMovingRight", true);
+            _animator.SetBool("IsMovingLeft", false);
 
             //scale down major damage to match wing distance
             MajorDamageAnimationScalar(1, factor);
